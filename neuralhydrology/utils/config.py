@@ -620,6 +620,10 @@ class Config(object):
         return self._get_value_verbose("optimizer")
 
     @property
+    def weight_decay(self) -> float:
+        return self._cfg.get("weight_decay", 0.0)
+
+    @property
     def output_activation(self) -> str:
         return self._cfg.get("output_activation", "linear")
 

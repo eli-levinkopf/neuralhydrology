@@ -422,16 +422,22 @@ class BaseTester(object):
                 data = model.pre_model_hook(data, is_train=False)
                 predictions, loss = self._get_predictions_and_loss(model, data)
 
-                if all_output:
-                    for key, value in predictions.items():
-                        if value is not None and type(value) != dict:
-                            all_output[key].append(value.detach().cpu().numpy())
-                elif save_all_output:
-                    all_output = {
-                        key: [value.detach().cpu().numpy()]
-                        for key, value in predictions.items()
-                        if value is not None and type(value) != dict
-                    }
+                # if all_output:
+                #     for key, value in predictions.items():
+                #         if value is not None and type(value) != dict:
+                #             all_output[key].append(value.detach().cpu().numpy())
+                # elif save_all_output:
+                #     all_output = {
+                #         key: [value.detach().cpu().numpy()]
+                #         for key, value in predictions.items()
+                #         if value is not None and type(value) != dict
+                #     }
+
+                if save_all_output:
+                    all_output.setdefault("x_d", []).append(data["x_d"].detach().cpu().numpy())
+                    if "x_s" not in all_output:
+                        # Take the first row of x_s, which is representative if static features are constant.
+                        all_output.setdefault("x_s", []).append(data["x_s"].detach().cpu().numpy()[0:1])
 
                 for freq in frequencies:
                     if predict_last_n[freq] == 0:
