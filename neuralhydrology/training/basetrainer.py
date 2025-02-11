@@ -331,8 +331,10 @@ class BaseTrainer(object):
             pbar.set_postfix_str(f"Loss: {loss.item():.4f}")
 
             # Compute batch metrics
-            y_true = xr.DataArray(data["y"].detach().cpu().numpy())
-            y_pred = xr.DataArray(predictions["y_hat"].detach().cpu().numpy())
+            LOGGER.info(f"before squeeze:\ny_true shape: {data['y'].shape}, y_pred shape: {predictions['y_hat'].shape}")
+            y_true = xr.DataArray(data["y"].detach().cpu().numpy().squeeze())
+            y_pred = xr.DataArray(predictions["y_hat"].detach().cpu().numpy().squeeze())
+            LOGGER.info(f"after squeeze:\n y_true shape: {data['y'].shape}, y_pred shape: {predictions['y_hat'].shape}")
             batch_metrics = calculate_metrics(y_pred, y_true, self.cfg.metrics)
 
             # Store batch-wise metrics
