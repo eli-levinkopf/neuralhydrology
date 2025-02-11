@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import xarray as xr
 
 import neuralhydrology.training.loss as loss
 from neuralhydrology.datasetzoo import get_dataset
@@ -330,8 +331,8 @@ class BaseTrainer(object):
             pbar.set_postfix_str(f"Loss: {loss.item():.4f}")
 
             # Compute batch metrics
-            y_true = data["y"].detach().cpu().numpy()
-            y_pred = predictions["y_hat"].detach().cpu().numpy()
+            y_true = xr.DataArray(data["y"].detach().cpu().numpy())
+            y_pred = xr.DataArray(predictions["y_hat"].detach().cpu().numpy())
             batch_metrics = calculate_metrics(y_pred, y_true, self.cfg.metrics)
 
             # Store batch-wise metrics
