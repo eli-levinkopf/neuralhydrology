@@ -22,6 +22,7 @@ from neuralhydrology.training import get_loss_obj, get_optimizer, get_regulariza
 from neuralhydrology.training.logger import Logger
 from neuralhydrology.utils.config import Config
 from neuralhydrology.utils.logging_utils import setup_logging
+from neuralhydrology.evaluation.metrics import calculate_metrics
 
 LOGGER = logging.getLogger(__name__)
 
@@ -279,6 +280,8 @@ class BaseTrainer(object):
         pbar = tqdm(self.loader, file=sys.stdout, disable=self._disable_pbar, total=n_iter)
         pbar.set_description(f'# Epoch {epoch}')
 
+        batch_metrics_list = {metric: [] for metric in self.cfg.metrics}
+
         # Iterate in batches over training set
         nan_count = 0
         for i, data in enumerate(pbar):
@@ -292,7 +295,7 @@ class BaseTrainer(object):
             # apply possible pre-processing to the batch before the forward pass
             data = self.model.pre_model_hook(data, is_train=True)
 
-            # get predictions
+            # Get predictions
             predictions = self.model(data)
 
             if self.noise_sampler_y is not None:
@@ -326,7 +329,25 @@ class BaseTrainer(object):
 
             pbar.set_postfix_str(f"Loss: {loss.item():.4f}")
 
+            # Compute batch metrics
+            y_true = data["y"].detach().cpu().numpy()
+            y_pred = predictions["y_hat"].detach().cpu().numpy()
+            batch_metrics = calculate_metrics(y_pred, y_true, self.cfg.metrics)
+
+            # Store batch-wise metrics
+            for metric_name, value in batch_metrics.items():
+                batch_metrics_list[metric_name].append(value)
+
             self.experiment_logger.log_step(**{k: v.item() for k, v in all_losses.items()})
+
+        # Compute median training metrics for the epoch
+        median_train_metrics = {metric: np.median(values) for metric, values in batch_metrics_list.items()}
+
+        # Log epoch-wise training metrics
+        self.experiment_logger.log_step(median_train_metrics, train=True)
+
+        train_metrics_str = ", ".join(f"{k}: {v:.5f}" for k, v in median_train_metrics.items())
+        LOGGER.info(f"Epoch {epoch} median training metrics: {train_metrics_str}")
 
     def _set_random_seeds(self):
         if self.cfg.seed is None:
