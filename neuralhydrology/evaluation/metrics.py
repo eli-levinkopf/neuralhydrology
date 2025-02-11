@@ -882,7 +882,7 @@ def _check_all_nan(obs: DataArray, sim: DataArray):
     AllNaNError
         If all observations or all simulations are NaN.
     """
-    if all(obs.isnull()):
+    if obs.isnull().all():
         raise AllNaNError("All observed values are NaN, thus metrics will be NaN, too.")
-    if all(sim.isnull()):
+    if sim.isnull().all():
         raise AllNaNError("All simulated values are NaN, thus metrics will be NaN, too.")
