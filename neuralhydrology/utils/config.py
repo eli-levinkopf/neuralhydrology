@@ -874,6 +874,10 @@ class Config(object):
         """
         return self._cfg.get("verbose", 1)
 
+    @property
+    def calculate_train_metrics(self) -> bool:
+        return self._cfg.get("calculate_train_metrics", False)
+
     def _get_embedding_spec(self, embedding_spec: dict) -> dict:
         if isinstance(embedding_spec, bool) and embedding_spec:  #
             msg = [
