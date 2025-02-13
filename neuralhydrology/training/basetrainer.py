@@ -229,8 +229,8 @@ class BaseTrainer(object):
                 if self.train_validator is None:
                     # Copy the validator which already loaded the fixed basin subset (via validation_basin_file)
                     self.train_validator = copy.deepcopy(self.validator)
-                    # Set its period to "training" so that it loads data from the training time window
-                    self.train_validator.period = "training"
+                    # Set its period to "train" so that it loads data from the training time window
+                    self.train_validator.period = "train"
                     # Override its basin list so that it uses the fixed subset (from validation_basin_file)
                     self.train_validator.basins = load_basin_file(self.cfg.validation_basin_file)
 
