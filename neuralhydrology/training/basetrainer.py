@@ -223,21 +223,6 @@ class BaseTrainer(object):
             if epoch % self.cfg.save_weights_every == 0:
                 self._save_weights_and_optimizer(epoch)
 
-            if (self.validator is not None) and (epoch % self.cfg.validate_every == 0):
-                self.validator.evaluate(epoch=epoch,
-                                        save_results=self.cfg.save_validation_results,
-                                        save_all_output=self.cfg.save_all_output,
-                                        metrics=self.cfg.metrics,
-                                        model=self.model,
-                                        experiment_logger=self.experiment_logger.valid())
-
-                valid_metrics = self.experiment_logger.summarise()
-                print_msg = f"Epoch {epoch} average validation loss: {valid_metrics['avg_total_loss']:.5f}"
-                if self.cfg.metrics:
-                    print_msg += f" -- Median validation metrics: "
-                    print_msg += ", ".join(f"{k}: {v:.5f}" for k, v in valid_metrics.items() if k != 'avg_total_loss')
-                    LOGGER.info(print_msg)
-
             # Training evaluation on fixed subset—use the same basins as in validation
             if (self.cfg.calculate_train_metrics) and (self.validator is not None) and (epoch % self.cfg.validate_every == 0):
                 # Create a training evaluator if not already present.
@@ -254,12 +239,27 @@ class BaseTrainer(object):
                                             save_all_output=self.cfg.save_all_output,
                                             metrics=self.cfg.metrics,
                                             model=self.model,
-                                            experiment_logger=self.experiment_logger.train())
+                                            experiment_logger=self.experiment_logger.valid())
 
                 train_metrics = self.experiment_logger.summarise()
                 if self.cfg.metrics:
                     print_msg = f"Epoch {epoch} -- Median validation metrics: "
                     print_msg += ", ".join(f"{k}: {v:.5f}" for k, v in train_metrics.items() if k != 'avg_total_loss')
+                    LOGGER.info(print_msg)
+
+            if (self.validator is not None) and (epoch % self.cfg.validate_every == 0):
+                self.validator.evaluate(epoch=epoch,
+                                        save_results=self.cfg.save_validation_results,
+                                        save_all_output=self.cfg.save_all_output,
+                                        metrics=self.cfg.metrics,
+                                        model=self.model,
+                                        experiment_logger=self.experiment_logger.valid())
+
+                valid_metrics = self.experiment_logger.summarise()
+                print_msg = f"Epoch {epoch} average validation loss: {valid_metrics['avg_total_loss']:.5f}"
+                if self.cfg.metrics:
+                    print_msg += f" -- Median validation metrics: "
+                    print_msg += ", ".join(f"{k}: {v:.5f}" for k, v in valid_metrics.items() if k != 'avg_total_loss')
                     LOGGER.info(print_msg)
 
         # make sure to close tensorboard to avoid losing the last epoch
@@ -307,11 +307,6 @@ class BaseTrainer(object):
         pbar = tqdm(self.loader, file=sys.stdout, disable=self._disable_pbar, total=n_iter)
         pbar.set_description(f'# Epoch {epoch}')
 
-        # Prepare lists to store all predictions & targets for entire epoch
-        if self.cfg.calculate_train_metrics:
-            all_preds = []
-            all_targets = []
-
         # Iterate in batches over training set
         nan_count = 0
         for i, data in enumerate(pbar):
@@ -357,32 +352,9 @@ class BaseTrainer(object):
                 # update weights
                 self.optimizer.step()
 
-            self.experiment_logger.log_step(**{k: v.item() for k, v in all_losses.items()})
-
-            if self.cfg.calculate_train_metrics:
-                # Store predictions & targets for metrics computation
-                # Assuming the model is "sequence-to-one": only the last time step is relevant
-                preds_batch = predictions["y_hat"][:, -1, :].detach().cpu().numpy()
-                targets_batch = data["y"][:, -1, :].detach().cpu().numpy()
-                all_preds.append(preds_batch)
-                all_targets.append(targets_batch)
-
-            # update progress bar
             pbar.set_postfix_str(f"Loss: {loss.item():.4f}")
 
-        if self.cfg.calculate_train_metrics:
-            # After processing all batches, combine everything
-            all_preds = np.concatenate(all_preds, axis=0)
-            all_targets = np.concatenate(all_targets, axis=0)
-
-            y_pred = xr.DataArray(all_preds.squeeze())
-            y_true = xr.DataArray(all_targets.squeeze())
-
-            # compute epoch-level metrics on the entire training set
-            train_metrics = calculate_metrics(y_pred, y_true, self.cfg.metrics)
-
-            train_metrics_str = ", ".join(f"{k}: {v:.5f}" for k, v in train_metrics.items())
-            LOGGER.info(f"Epoch {epoch} global training metrics: {train_metrics_str}")
+            self.experiment_logger.log_step(**{k: v.item() for k, v in all_losses.items()})
 
     def _set_random_seeds(self):
         if self.cfg.seed is None:
