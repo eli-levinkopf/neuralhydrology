@@ -243,7 +243,7 @@ class BaseTrainer(object):
 
                 train_metrics = self.experiment_logger.summarise()
                 if self.cfg.metrics:
-                    print_msg = f"Epoch {epoch} -- Median validation metrics: "
+                    print_msg = f"Epoch {epoch} -- Median training metrics: "
                     print_msg += ", ".join(f"{k}: {v:.5f}" for k, v in train_metrics.items() if k != 'avg_total_loss')
                     LOGGER.info(print_msg)
 
