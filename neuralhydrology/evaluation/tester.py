@@ -196,7 +196,7 @@ class BaseTester(object):
         all_output = {basin: None for basin in basins}
 
         pbar = tqdm(basins, file=sys.stdout, disable=self._disable_pbar)
-        pbar.set_description('# Validation' if self.period == "validation" else "# Evaluation")
+        pbar.set_description('# Validation' if self.period == "validation" else f"# Evaluation ({self.period})")
 
         for basin in pbar:
 
@@ -208,7 +208,7 @@ class BaseTester(object):
                 except NoEvaluationDataError as error:
                     # skip basin
                     continue
-                if self.cfg.cache_validation_data and self.period == "validation":
+                if self.cfg.cache_validation_data and (self.period == "validation" or self.period == "training"):
                     self.cached_datasets[basin] = ds
 
             loader = DataLoader(ds, batch_size=self.cfg.batch_size, num_workers=0, collate_fn=ds.collate_fn)

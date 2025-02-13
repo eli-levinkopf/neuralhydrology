@@ -5,6 +5,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
+import copy
 
 import numpy as np
 import torch
@@ -46,6 +47,7 @@ class BaseTrainer(object):
         self.experiment_logger = None
         self.loader = None
         self.validator = None
+        self.train_validator = None
         self.noise_sampler_y = None
         self._target_mean = None
         self._target_std = None
@@ -234,6 +236,30 @@ class BaseTrainer(object):
                 if self.cfg.metrics:
                     print_msg += f" -- Median validation metrics: "
                     print_msg += ", ".join(f"{k}: {v:.5f}" for k, v in valid_metrics.items() if k != 'avg_total_loss')
+                    LOGGER.info(print_msg)
+
+            # Training evaluation on fixed subset—use the same basins as in validation
+            if (self.cfg.calculate_train_metrics) and (self.validator is not None) and (epoch % self.cfg.validate_every == 0):
+                # Create a training evaluator if not already present.
+                if self.train_validator is None:
+                    # Copy the validator which already loaded the fixed basin subset (via validation_basin_file)
+                    self.train_validator = copy.deepcopy(self.validator)
+                    # Set its period to "training" so that it loads data from the training time window
+                    self.train_validator.period = "training"
+                    # Override its basin list so that it uses the fixed subset (from validation_basin_file)
+                    self.train_validator.basins = load_basin_file(self.cfg.validation_basin_file)
+
+                self.train_validator.evaluate(epoch=epoch,
+                                            save_results=self.cfg.save_validation_results,
+                                            save_all_output=self.cfg.save_all_output,
+                                            metrics=self.cfg.metrics,
+                                            model=self.model,
+                                            experiment_logger=self.experiment_logger.train())
+
+                train_metrics = self.experiment_logger.summarise()
+                if self.cfg.metrics:
+                    print_msg = f"Epoch {epoch} -- Median validation metrics: "
+                    print_msg += ", ".join(f"{k}: {v:.5f}" for k, v in train_metrics.items() if k != 'avg_total_loss')
                     LOGGER.info(print_msg)
 
         # make sure to close tensorboard to avoid losing the last epoch
