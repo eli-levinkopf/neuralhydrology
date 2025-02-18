@@ -208,7 +208,7 @@ class BaseTester(object):
                 except NoEvaluationDataError as error:
                     # skip basin
                     continue
-                if self.cfg.cache_validation_data and (self.period == "validation" or self.period == "training"):
+                if self.cfg.cache_validation_data and (self.period == "validation" or self.period == "train"):
                     self.cached_datasets[basin] = ds
 
             loader = DataLoader(ds, batch_size=self.cfg.batch_size, num_workers=0, collate_fn=ds.collate_fn)
@@ -435,6 +435,8 @@ class BaseTester(object):
 
                 if save_all_output:
                     all_output.setdefault("x_d", []).append(data["x_d"].detach().cpu().numpy())
+                    # Save only the target from the last time step of each sequence:
+                    all_output.setdefault("y", []).append(data["y"][:, -1, :].detach().cpu().numpy())
                     if "x_s" not in all_output:
                         # Take the first row of x_s, which is representative if static features are constant.
                         all_output.setdefault("x_s", []).append(data["x_s"].detach().cpu().numpy()[0:1])
