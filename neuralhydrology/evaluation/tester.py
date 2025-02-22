@@ -399,12 +399,11 @@ class BaseTester(object):
                 pickle.dump(results, fp)
             LOGGER.info(f"Stored results at {result_file}")
 
-        # store all model output using HDF5 instead of pickle
+        # store all model output packed as pickle file
         if states is not None:
-            result_file = parent_directory / f"{self.period}_all_output.h5"
-            with h5py.File(result_file, "w") as hf:
-                for key, data in states.items():
-                    hf.create_dataset(key, data=data, compression="gzip", chunks=True)
+            result_file = parent_directory / f"{self.period}_all_output.p"
+            with result_file.open("wb") as fp:
+                pickle.dump(states, fp)
             LOGGER.info(f"Stored states at {result_file}")
 
     def _evaluate(self, model: BaseModel, loader: DataLoader, frequencies: List[str], save_all_output: bool = False):
